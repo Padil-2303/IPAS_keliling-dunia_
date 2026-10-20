@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EKSPEDISI IPAS: MISI KELILING DUNIA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #e0f2fe; /* sky-100 */
+            background-image: radial-gradient(#bae6fd 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Buttons & UI Elements */
+        .btn-game {
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 0 #00000033;
+        }
+        .btn-game:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #00000033;
+        }
+        
+        .option-btn {
+            transition: all 0.2s;
+            border: 3px solid transparent;
+        }
+        .option-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            border-color: #38bdf8;
+        }
+        .option-btn.selected {
+            border-color: #f59e0b;
+            background-color: #fef3c7;
+        }
+        .option-btn.correct {
+            border-color: #10b981;
+            background-color: #d1fae5;
+            color: #047857;
+        }
+        .option-btn.wrong {
+            border-color: #ef4444;
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .floating { animation: float 3s ease-in-out infinite; }
+        
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* Map Styles */
+        .map-path {
+            stroke-dasharray: 10;
+            animation: dash 20s linear infinite;
+        }
+        @keyframes dash { to { stroke-dashoffset: -1000; } }
+        
+        .mission-node {
+            transition: all 0.3s;
+            filter: grayscale(100%);
+            opacity: 0.7;
+        }
+        .mission-node.active {
+            filter: grayscale(0%);
+            opacity: 1;
+            transform: scale(1.1);
+            animation: float 2s infinite;
+        }
+        .mission-node.completed {
+            filter: grayscale(0%);
+            opacity: 1;
+        }
+
+        /* Drag and Drop Custom Styles */
+        .drag-item {
+            cursor: grab;
+            touch-action: none; /* Prevent scrolling while dragging */
+            user-select: none;
+        }
+        .drag-item.dragging {
+            cursor: grabbing;
+            opacity: 0.8;
+            transform: scale(1.05);
+            z-index: 50;
+            position: absolute;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .drop-zone.active-zone {
+            background-color: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        /* Hide Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+<div class="game-container flex flex-col relative" id="app">
+    <!-- Header/Nav -->
+    <header class="bg-sky-500 text-white p-3 md:p-4 flex justify-between items-center z-10 rounded-b-2xl shadow-md hidden" id="game-header">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl">🌍</span>
+            <div class="flex flex-col">
+                <span class="font-bold leading-tight" id="header-name">Pemain</span>
+                <span class="text-xs text-sky-100">IPAS Kls VI</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex flex-col items-end">
+                <span class="text-xs text-sky-100">Skor</span>
+                <span class="font-bold text-yellow-300" id="header-score">0</span>
+            </div>
+            <button onclick="toggleAudio()" class="p-2 bg-sky-600 rounded-full hover:bg-sky-700 transition" title="Toggle Audio">
+                <span id="audio-icon" class="text-xl">🔊</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow flex flex-col relative w-full h-full" id="main-content">
+        
+        <!-- ==================== SCREEN: HOME ==================== -->
+        <div id="screen-home" class="flex flex-col items-center justify-center p-4 min-h-screen text-center z-10 w-full absolute inset-0 bg-gradient-to-b from-sky-300 to-blue-200">
+            <div class="bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-xl max-w-md w-full pop-in border-4 border-white">
+                <h1 class="text-3xl md:text-4xl font-black text-sky-600 mb-2 drop-shadow-sm" style="line-height: 1.2;">EKSPEDISI IPAS</h1>
+                <h2 class="text-lg md:text-xl font-bold text-amber-500 mb-4">MISI KELILING DUNIA</h2>
+                
+                <div class="w-full h-48 bg-sky-100 rounded-xl mb-4 overflow-hidden border-4 border-sky-200 relative flex items-center justify-center">
+                    <!-- Referencing requested image -->
+                    <img src="Foto sampul.jpg" alt="Ilustrasi Petualangan" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/600x400/bae6fd/0284c7?text=Ekspedisi+IPAS';">
+                </div>
+
+                <p class="text-sm text-slate-600 font-semibold mb-4">Petualangan Seru Menjelajahi Dunia dan Mengenal Indonesia</p>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-lg mb-4 text-left">
+                    <div>📚 Mata Pelajaran: IPAS</div>
+                    <div>🏫 Kelas: VI</div>
+                    <div>📅 Semester: 1</div>
+                    <div>🎓 Tahun: 2026/2027</div>
+                </div>
+
+                <div class="mb-4">
+                    <input type="text" id="player-name" placeholder="Masukkan Nama Lengkapmu..." class="w-full p-4 rounded-xl border-2 border-sky-300 focus:border-sky-500 focus:outline-none text-center font-bold text-lg bg-white shadow-inner">
+                </div>
+
+                <div class="flex items-center justify-center gap-3 mb-6">
+                    <span class="text-sm font-bold text-slate-600">Audio Narasi:</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="audio-toggle-init" class="sr-only peer" checked>
+                        <div class="w-14 h-7 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-sky-500"></div>
+                        <span class="ml-3 text-sm font-bold text-sky-600 peer-checked:text-sky-600" id="audio-label-init">Aktif</span>
+                    </label>
+                </div>
+
+                <button onclick="startGame()" class="btn-game w-full bg-amber-400 hover:bg-amber-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg border-b-4 border-amber-600 flex justify-center items-center gap-2">
+                    MULAI PETUALANGAN 🚀
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== SCREEN: MAP ==================== -->
+        <div id="screen-map" class="hidden flex-col items-center p-4 w-full h-full absolute inset-0 bg-[#86efac]">
+            <div class="bg-white/80 px-4 py-2 rounded-full font-bold text-emerald-800 mb-4 z-10 shadow border-2 border-emerald-200 mt-2">Peta Petualangan</div>
+            
+            <div class="relative w-full max-w-sm flex-grow flex items-center justify-center">
+                <!-- Simple SVG Map Path -->
+                <svg class="absolute inset-0 w-full h-full z-0 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M 20 80 Q 50 60 80 50 T 30 20" fill="none" stroke="#047857" stroke-width="2" stroke-dasharray="4" class="map-path"/>
+                </svg>
+
+                <!-- Mission Nodes -->
+                <div class="absolute w-full h-full flex flex-col justify-between py-10 z-10">
+                    
+                    <!-- Misi 3 -->
+                    <div id="node-3" class="mission-node self-center text-center cursor-not-allowed">
+                        <div class="w-20 h-20 bg-purple-500 rounded-full border-4 border-white shadow-lg mx-auto flex items-center justify-center text-4xl mb-2 relative">
+                            🐉
+                            <div class="absolute -top-2 -right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-full text-black border-2 border-white">Sulit</div>
+                        </div>
+                        <span class="bg-white/90 px-3 py-1 rounded-lg font-bold text-sm text-purple-700 shadow">3. Naga Penjaga</span>
+                    </div>
+
+                    <!-- Misi 2 -->
+                    <div id="node-2" class="mission-node self-end mr-8 text-center cursor-not-allowed">
+                        <div class="w-20 h-20 bg-blue-500 rounded-full border-4 border-white shadow-lg mx-auto flex items-center justify-center text-4xl mb-2 relative">
+                            ⛰️
+                            <div class="absolute -top-2 -right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-full text-black border-2 border-white">Sedang</div>
+                        </div>
+                        <span class="bg-white/90 px-3 py-1 rounded-lg font-bold text-sm text-blue-700 shadow">2. Tantangan Bumi</span>
+                    </div>
+
+                    <!-- Misi 1 -->
+                    <div id="node-1" class="mission-node active self-start ml-8 text-center cursor-pointer" onclick="startMission(1)">
+                        <div class="w-20 h-20 bg-green-500 rounded-full border-4 border-white shadow-lg mx-auto flex items-center justify-center text-4xl mb-2 floating">
+                            🧭
+                            <div class="absolute -top-2 -right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-full text-black border-2 border-white">Mudah</div>
+                        </div>
+                        <span class="bg-white/90 px-3 py-1 rounded-lg font-bold text-sm text-green-800 shadow">1. Gerbang Dunia</span>
+                        <div class="mt-2 text-xs font-bold text-white bg-green-600 px-2 py-1 rounded-full animate-pulse">Klik untuk Mulai!</div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <button id="btn-to-minigame" onclick="startMiniGame()" class="hidden btn-game bg-amber-500 text-white font-bold py-3 px-6 rounded-xl mt-4 z-10 border-b-4 border-amber-700 w-full max-w-sm mb-4">
+                Buka Peti Harta Karun (Mini-game) 🎁
+            </button>
+        </div>
+
+        <!-- ==================== SCREEN: QUIZ ==================== -->
+        <div id="screen-quiz" class="hidden flex-col w-full h-full absolute inset-0 bg-slate-50 p-4">
+            
+            <div class="flex justify-between items-center mb-4">
+                <div class="bg-sky-100 text-sky-800 font-bold px-3 py-1 rounded-full text-sm border-2 border-sky-200" id="quiz-mission-title">Misi 1</div>
+                <div class="font-bold text-slate-500 text-sm" id="quiz-progress">Soal 1/5</div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-200 rounded-full h-2.5 mb-6">
+                <div id="quiz-progress-bar" class="bg-sky-500 h-2.5 rounded-full" style="width: 20%"></div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white rounded-2xl shadow-sm border-2 border-slate-100 p-5 mb-6">
+                <div class="flex items-start gap-3">
+                    <button onclick="readText(document.getElementById('question-text').innerText)" class="p-2 bg-sky-100 rounded-full text-sky-600 hover:bg-sky-200 shrink-0 hidden md:block">🔊</button>
+                    <p id="question-text" class="text-lg md:text-xl font-bold text-slate-700 leading-snug">Memuat soal...</p>
+                </div>
+            </div>
+
+            <!-- Options Grid -->
+            <div class="grid grid-cols-1 gap-3 w-full max-w-lg mx-auto" id="options-container">
+                <!-- Options populated by JS -->
+            </div>
+
+        </div>
+
+        <!-- Modal Umpan Balik (Feedback) -->
+        <div id="feedback-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-md text-center shadow-2xl pop-in transform transition-all">
+                <div id="feedback-icon" class="text-6xl mb-2">✅</div>
+                <h3 id="feedback-title" class="text-2xl font-black mb-2">Hebat!</h3>
+                <p id="feedback-points" class="font-bold text-amber-500 text-lg mb-4">+10 Poin</p>
+                <div class="bg-slate-50 p-4 rounded-xl text-left border border-slate-100 mb-6">
+                    <p id="feedback-explanation" class="text-sm text-slate-600 font-medium">Penjelasan jawaban di sini...</p>
+                </div>
+                <button onclick="nextQuestion()" class="btn-game w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl border-b-4 border-sky-700 text-lg">
+                    Lanjutkan <span aria-hidden="true">&rarr;</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== SCREEN: MINIGAME DRAG & DROP ==================== -->
+        <div id="screen-minigame" class="hidden flex-col w-full h-full absolute inset-0 bg-amber-50 p-2 md:p-4 overflow-y-auto pb-20">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-black text-amber-600">Mini-game Bonus!</h2>
+                <p class="text-sm font-bold text-slate-600">Pasangkan aktivitas ekonomi dengan wilayah geografisnya.</p>
+                <p class="text-xs text-slate-500 mt-1">Sentuh kartu, lalu sentuh kotak wilayah yang tepat.</p>
+            </div>
+
+            <!-- Drop Zones -->
+            <div class="grid grid-cols-3 gap-2 mb-6" id="drop-zones">
+                <div class="drop-zone bg-white border-2 border-dashed border-green-400 rounded-xl p-2 min-h-[120px] flex flex-col items-center" data-zone="dataran_tinggi">
+                    <span class="font-bold text-green-700 text-xs md:text-sm mb-2 text-center">⛰️ Dataran Tinggi</span>
+                    <div class="zone-content w-full flex flex-col gap-1 min-h-[80px]"></div>
+                </div>
+                <div class="drop-zone bg-white border-2 border-dashed border-blue-400 rounded-xl p-2 min-h-[120px] flex flex-col items-center" data-zone="pesisir_laut">
+                    <span class="font-bold text-blue-700 text-xs md:text-sm mb-2 text-center">🌊 Pesisir & Laut</span>
+                    <div class="zone-content w-full flex flex-col gap-1 min-h-[80px]"></div>
+                </div>
+                <div class="drop-zone bg-white border-2 border-dashed border-orange-400 rounded-xl p-2 min-h-[120px] flex flex-col items-center" data-zone="dataran_rendah">
+                    <span class="font-bold text-orange-700 text-xs md:text-sm mb-2 text-center">🌾 Dataran Rendah</span>
+                    <div class="zone-content w-full flex flex-col gap-1 min-h-[80px]"></div>
+                </div>
+            </div>
+
+            <!-- Draggable Items Container -->
+            <div class="bg-white p-3 rounded-xl shadow-inner border border-slate-200 min-h-[100px]">
+                <p class="text-xs font-bold text-slate-400 mb-2 text-center" id="draggables-title">Pilih Kartu di Bawah Ini:</p>
+                <div id="draggables-container" class="flex flex-wrap gap-2 justify-center">
+                    <!-- Items populated by JS -->
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-center pb-8">
+                <button onclick="checkMiniGame()" class="btn-game bg-green-500 text-white font-bold py-3 px-8 rounded-xl border-b-4 border-green-700 text-lg shadow-lg">
+                    PERIKSA JAWABAN
+                </button>
+            </div>
+            
+            <!-- Minigame Feedback Modal -->
+            <div id="mg-feedback-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl pop-in">
+                    <h3 id="mg-feedback-title" class="text-2xl font-black mb-2">Hasil</h3>
+                    <p id="mg-feedback-text" class="font-bold text-slate-600 mb-4">Kamu berhasil mencocokkan X dari Y.</p>
+                    <p id="mg-feedback-score" class="text-xl font-bold text-amber-500 mb-6">+0 Poin Bonus</p>
+                    <button id="mg-btn-retry" onclick="closeMgFeedback(true)" class="btn-game w-full bg-orange-400 hover:bg-orange-500 text-white font-bold py-2 rounded-xl border-b-4 border-orange-600 mb-2 hidden">
+                        Coba Perbaiki
+                    </button>
+                    <button onclick="endMiniGame()" class="btn-game w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl border-b-4 border-sky-700">
+                        Selesai & Lihat Hasil
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCREEN: RESULTS ==================== -->
+        <div id="screen-results" class="hidden flex-col w-full absolute inset-0 bg-gradient-to-b from-sky-600 to-blue-800 text-white overflow-y-auto pb-10">
+            <div class="p-6 md:p-8 max-w-2xl mx-auto w-full">
+                
+                <h2 class="text-3xl font-black text-center text-yellow-300 drop-shadow-md mb-2">PAPAN PENCAPAIAN</h2>
+                <h3 class="text-center font-bold text-sky-200 mb-6 border-b border-sky-400 pb-4">PENJELAJAH DUNIA</h3>
+
+                <!-- Player Info -->
+                <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-6 border border-white/20">
+                    <div class="flex justify-between items-end border-b border-white/20 pb-2 mb-2">
+                        <div>
+                            <p class="text-xs text-sky-200 uppercase tracking-wide">Nama Pemain</p>
+                            <p class="text-xl font-bold" id="res-name">Nama</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-sky-200" id="res-date">Tanggal</p>
+                            <p class="text-xs text-sky-200">IPAS Kelas VI</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-center text-sky-100 italic" id="res-message">Pesan apresiasi</p>
+                </div>
+
+                <!-- Main Score & Badge -->
+                <div class="flex gap-4 mb-6">
+                    <div class="flex-1 bg-white rounded-2xl p-4 text-center text-slate-800 shadow-lg flex flex-col justify-center">
+                        <p class="text-sm font-bold text-slate-400 uppercase">Nilai Akhir</p>
+                        <div class="flex items-baseline justify-center gap-1">
+                            <span class="text-5xl font-black text-sky-500" id="res-final-score">100</span>
+                            <span class="text-sm text-slate-400">/100</span>
+                        </div>
+                        <p class="mt-2 text-sm font-bold px-2 py-1 rounded-full w-max mx-auto" id="res-eval-badge">Sangat Baik</p>
+                    </div>
+                    
+                    <div class="flex-1 bg-gradient-to-br from-amber-300 to-orange-500 rounded-2xl p-4 text-center shadow-lg border-2 border-yellow-200 flex flex-col justify-center items-center">
+                        <p class="text-sm font-bold text-orange-100 uppercase mb-1">Lencana</p>
+                        <div class="text-4xl mb-1" id="res-badge-icon">🏆</div>
+                        <p class="font-black text-sm text-white drop-shadow-sm" id="res-badge-name">Master Ekspedisi</p>
+                    </div>
+                </div>
+
+                <!-- Detailed Stats -->
+                <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-6 border border-white/20 grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs text-sky-200">Jawaban Benar</p>
+                        <p class="text-xl font-bold text-green-300" id="res-correct">15</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-sky-200">Jawaban Salah</p>
+                        <p class="text-xl font-bold text-red-300" id="res-wrong">0</p>
+                    </div>
+                    <div class="col-span-2 border-t border-white/20 pt-2 mt-1">
+                        <p class="text-xs text-sky-200 mb-1">Rincian Poin (Maks 300)</p>
+                        <div class="flex justify-between text-sm">
+                            <span>Misi 1 (Mudah):</span> <span class="font-bold text-yellow-300" id="res-pts-1">50</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Misi 2 (Sedang):</span> <span class="font-bold text-yellow-300" id="res-pts-2">100</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Misi 3 (Sulit):</span> <span class="font-bold text-yellow-300" id="res-pts-3">150</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-bold border-t border-white/10 pt-1 mt-1">
+                            <span>Total Poin Utama:</span> <span class="text-yellow-400" id="res-total-pts">300</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bonus -->
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 mb-8 text-center border border-purple-400 shadow-md">
+                    <p class="text-sm font-bold text-purple-200">Poin Bonus Mini-game</p>
+                    <p class="text-2xl font-black text-white" id="res-bonus">+50 Poin</p>
+                </div>
+
+                <!-- Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- <button class="btn-game bg-white text-sky-600 font-bold py-3 rounded-xl border-b-4 border-slate-300">Lihat Pembahasan</button> -->
+                    <button onclick="resetGame()" class="btn-game bg-emerald-500 text-white font-bold py-3 rounded-xl border-b-4 border-emerald-700 w-full">Main Lagi</button>
+                    <button onclick="window.print()" class="btn-game bg-sky-500 text-white font-bold py-3 rounded-xl border-b-4 border-sky-700 w-full">Cetak Hasil</button>
+                </div>
+                
+                <p class="text-center text-xs text-sky-300 mt-8">Evaluasi berdasarkan capaian kompetensi materi Pelesir Keliling Dunia & Pemanfaatan Geografis Indonesia.</p>
+
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    let state = {
+        player: '',
+        audioEnabled: true,
+        currentMission: 1, // 1, 2, or 3
+        currentQuestionIndex: 0, // relative to current mission (0-4)
+        scoreMCQ: 0,
+        scoreBonus: 0,
+        correctAnswers: 0,
+        wrongAnswers: 0,
+        pointsPerLevel: { 1: 0, 2: 0, 3: 0 },
+        answersLog: [] // Store user answers for potential review feature
+    };
+
+    // --- DATA ---
+    // Materi 1: Pelesir Keliling Dunia | Materi 2: Pemanfaatan Kondisi Geografis di Indonesia
+    const questionsData = {
+        1: [ // Mudah (10 points each)
+            {
+                q: "Benua terkecil di dunia yang juga merupakan sebuah negara adalah...",
+                opts: ["Benua Eropa", "Benua Australia", "Benua Afrika", "Benua Antartika"],
+                ans: 1, // Index of correct option
+                exp: "Berdasarkan peta, Benua Australia merupakan benua terkecil yang sekaligus menjadi wilayah satu negara persemakmuran.",
+                mat: 1
+            },
+            {
+                q: "Benua yang memiliki jumlah penduduk terbanyak di dunia dan kegiatan ekonomi utamanya di bidang pertanian adalah...",
+                opts: ["Benua Asia", "Benua Amerika", "Benua Afrika", "Benua Eropa"],
+                ans: 0,
+                exp: "Benua Asia memiliki jumlah penduduk terbanyak. Sebagian besar bermata pencarian di bidang pertanian, seperti padi dan gandum.",
+                mat: 1
+            },
+            {
+                q: "Karena sebagian besar penduduknya bermata pencarian di bidang pertanian, Indonesia dikenal sebagai negara...",
+                opts: ["Maritim", "Industri", "Agraris", "Pesisir"],
+                ans: 2,
+                exp: "Negara agraris adalah sebutan untuk negara yang sebagian besar rakyatnya bekerja sebagai petani, didukung oleh tanah yang subur.",
+                mat: 2
+            },
+            {
+                q: "Benua yang dilewati oleh garis khatulistiwa dan memiliki gurun terbesar di dunia (Gurun Sahara) adalah...",
+                opts: ["Benua Eropa", "Benua Australia", "Benua Amerika", "Benua Afrika"],
+                ans: 3,
+                exp: "Benua Afrika dilewati garis khatulistiwa, memiliki iklim tropis/subtropis, dan terkenal dengan Gurun Sahara yang sangat luas.",
+                mat: 1
+            },
+            {
+                q: "Daerah dataran tinggi di Indonesia dengan udara yang sejuk banyak dimanfaatkan oleh masyarakat sebagai...",
+                opts: ["Lahan perikanan laut", "Lahan perkebunan dan wisata", "Kawasan industri pabrik", "Jalur pelayaran internasional"],
+                ans: 1,
+                exp: "Dataran tinggi cocok untuk tanaman perkebunan (seperti teh, kopi, stroberi) dan memiliki pemandangan indah untuk tempat wisata.",
+                mat: 2
+            }
+        ],
+        2: [ // Sedang (20 points each)
+            {
+                q: "Mengapa Benua Eropa sangat cocok untuk usaha bidang peternakan yang menghasilkan produk seperti keju, susu, dan daging?",
+                opts: ["Karena memiliki banyak gurun pasir yang luas.", "Karena alamnya didominasi hutan hujan tropis.", "Karena kondisi geografisnya mendukung ketersediaan pakan ternak di iklim subtropis.", "Karena daratannya tertutup es sepanjang tahun."],
+                ans: 2,
+                exp: "Iklim subtropis Eropa dan ketiadaan gurun membuat padang rumput tumbuh subur, sangat baik untuk pakan ternak sapi dan domba.",
+                mat: 1
+            },
+            {
+                q: "Selain agraris, Indonesia juga disebut negara maritim karena kekayaan lautnya. Contoh komoditas perikanan andalan yang diekspor adalah...",
+                opts: ["Padi, jagung, dan gandum", "Tuna, udang, dan cumi-cumi", "Karet, kopi, dan kelapa sawit", "Sapi, kambing, dan domba"],
+                ans: 1,
+                exp: "Tuna, udang, dan cumi-cumi adalah contoh hasil perikanan laut Indonesia yang diminati pasar internasional.",
+                mat: 2
+            },
+            {
+                q: "Perbedaan utama antara perekonomian wilayah Amerika Utara dan Amerika Selatan adalah...",
+                opts: ["Amerika Utara fokus pertanian purba, Amerika Selatan industri modern.", "Amerika Utara didominasi industri, Amerika Selatan bergantung pada pertanian dan pertambangan.", "Keduanya hanya bergantung pada perikanan laut.", "Amerika Utara tidak memiliki sumber daya alam."],
+                ans: 1,
+                exp: "Negara di Amerika Utara (seperti AS & Kanada) memiliki ekonomi industri maju, sedangkan Amerika Selatan masih berkembang berfokus pada pertanian/tambang.",
+                mat: 1
+            },
+            {
+                q: "Daerah sungai dan danau di Indonesia memberikan manfaat ekonomi besar. Berikut adalah pemanfaatannya, KECUALI...",
+                opts: ["Pembangkit Listrik Tenaga Air (PLTA)", "Sarana transportasi air antardaerah", "Lahan pertanian gandum skala besar", "Budi daya perikanan air tawar"],
+                ans: 2,
+                exp: "Gandum membutuhkan iklim subtropis, tidak cocok ditanam besar-besaran di sekitar sungai beriklim tropis Indonesia.",
+                mat: 2
+            },
+            {
+                q: "Meskipun memiliki gurun, Benua Australia sangat maju dalam peternakan dan mengekspor hasilnya. Hewan utama yang diternakkan adalah...",
+                opts: ["Unta dan gajah", "Domba dan sapi", "Babi hutan dan rusa", "Beruang kutub dan penguin"],
+                ans: 1,
+                exp: "Domba (penghasil wol/daging) dan sapi adalah komoditas peternakan utama yang menopang ekonomi Australia.",
+                mat: 1
+            }
+        ],
+        3: [ // Sulit (30 points each)
+            {
+                q: "Indonesia memiliki potensi Logam Tanah Jarang (LTJ) di Bangka Belitung. Untuk memajukan negara sesuai prinsip pemanfaatan SDM, langkah paling tepat adalah...",
+                opts: ["Menjual bahan mentah LTJ murah ke negara lain.", "Membiarkan LTJ di dalam tanah agar tidak habis.", "Meningkatkan kualitas SDM untuk mengolah LTJ menjadi produk teknologi (baterai/elektronik).", "Mengimpor semua alat elektronik dari luar negeri."],
+                ans: 2,
+                exp: "Mengolah bahan mentah menjadi barang jadi (hilirisasi) memerlukan SDM berkualitas dan memberikan nilai ekonomi yang jauh lebih tinggi bagi negara.",
+                mat: 2
+            },
+            {
+                q: "Bandingkan Benua Eropa yang merupakan satu-satunya benua tanpa gurun, dengan Benua Afrika. Kesimpulan yang tepat mengenai risiko bencana alam adalah...",
+                opts: ["Eropa lebih sering mengalami kekeringan ekstrem.", "Afrika lebih rentan terhadap bencana kekeringan dan kelaparan akibat luasnya wilayah gurun.", "Keduanya memiliki risiko bencana badai salju yang sama besar.", "Geografis tidak memengaruhi jenis bencana."],
+                ans: 1,
+                exp: "Kondisi Afrika yang memiliki banyak gurun dan beriklim panas menyebabkan benua ini sering dilanda kekeringan ekstrem yang berdampak pada kelaparan.",
+                mat: 1
+            },
+            {
+                q: "Berdasarkan karakteristik wilayah kepulauan Indonesia, contoh pemanfaatan sumber energi terbarukan yang paling efisien dikembangkan adalah...",
+                opts: ["Memperbanyak tambang batu bara di pulau kecil.", "Memanfaatkan gelombang laut dan energi panas bumi.", "Menebang hutan bakau untuk kayu bakar.", "Mengebor minyak bumi tanpa batasan wilayah."],
+                ans: 1,
+                exp: "Sebagai negara kepulauan yang dilalui jalur gunung berapi (Ring of Fire), Indonesia sangat kaya akan potensi energi gelombang laut dan panas bumi.",
+                mat: 2
+            },
+            {
+                q: "Wilayah Benua Amerika membujur sangat panjang dari Kutub Utara hingga Selatan. Dampak utama dari letak geografis ini adalah...",
+                opts: ["Memiliki satu jenis musim saja sepanjang tahun.", "Penduduknya memiliki budaya yang sama.", "Memiliki variasi iklim paling lengkap (tropis hingga dingin) yang memengaruhi keragaman flora fauna.", "Mudah dijelajahi dengan jalan darat dalam sehari."],
+                ans: 2,
+                exp: "Karena rentang lintang yang sangat panjang, Amerika memiliki zona iklim dingin di utara/selatan, sedang, subtropis, hingga tropis di tengah.",
+                mat: 1
+            },
+            {
+                q: "Sebuah pesisir mengalami kerusakan terumbu karang akibat penangkapan ikan menggunakan bahan peledak. Solusi paling bijaksana untuk memulihkan geografis dan ekonomi adalah...",
+                opts: ["Melarang total aktivitas nelayan dan menyuruh mereka pindah.", "Memberikan kapal pesiar besar untuk semua nelayan.", "Mengedukasi penangkapan ramah lingkungan, merehabilitasi karang, dan kembangkan ekowisata.", "Menimbun laut untuk dijadikan pabrik."],
+                ans: 2,
+                exp: "Solusi ini berkelanjutan: memperbaiki alam (rehabilitasi), mencegah kerusakan terulang (edukasi), dan memberi sumber ekonomi baru (ekowisata/pariwisata).",
+                mat: 2
+            }
+        ]
+    };
+
+    // Mini-game Data
+    const miniGameItems = [
+        { id: 'mg1', text: 'Perkebunan Teh & Kopi', target: 'dataran_tinggi' },
+        { id: 'mg2', text: 'Tambak Udang & Garam', target: 'pesisir_laut' },
+        { id: 'mg3', text: 'Pertanian Padi Sawah', target: 'dataran_rendah' },
+        { id: 'mg4', text: 'Pariwisata Terumbu Karang', target: 'pesisir_laut' },
+        { id: 'mg5', text: 'Kawasan Pabrik Industri', target: 'dataran_rendah' },
+        { id: 'mg6', text: 'Resor Wisata Pegunungan', target: 'dataran_tinggi' }
+    ];
+
+    // --- AUDIO SYSTEM (TTS) ---
+    let synth = window.speechSynthesis;
+    let speaking = false;
+
+    function toggleAudio() {
+        state.audioEnabled = !state.audioEnabled;
+        const icon = document.getElementById('audio-icon');
+        
+        if (state.audioEnabled) {
+            icon.innerText = '🔊';
+            // Update checkbox on home if it exists
+            const cb = document.getElementById('audio-toggle-init');
+            const lbl = document.getElementById('audio-label-init');
+            if(cb) { cb.checked = true; lbl.innerText = "Aktif"; lbl.classList.add('text-sky-600'); }
+            speak("Audio diaktifkan.");
+        } else {
+            icon.innerText = '🔇';
+            synth.cancel();
+            const cb = document.getElementById('audio-toggle-init');
+            const lbl = document.getElementById('audio-label-init');
+            if(cb) { cb.checked = false; lbl.innerText = "Nonaktif"; lbl.classList.remove('text-sky-600'); }
+        }
+    }
+
+    // Attach listener to home toggle
+    document.getElementById('audio-toggle-init').addEventListener('change', function(e) {
+        state.audioEnabled = e.target.checked;
+        const lbl = document.getElementById('audio-label-init');
+        if(state.audioEnabled) {
+            lbl.innerText = "Aktif"; lbl.classList.add('text-sky-600'); lbl.classList.remove('text-slate-400');
+        } else {
+            lbl.innerText = "Nonaktif"; lbl.classList.remove('text-sky-600'); lbl.classList.add('text-slate-400');
+            synth.cancel();
+        }
+    });
+
+    function speak(text, force = false) {
+        if (!state.audioEnabled && !force) return;
+        if (synth.speaking) {
+            synth.cancel(); // Stop current speech
+        }
+        if (text !== '') {
+            let utterThis = new SpeechSynthesisUtterance(text);
+            utterThis.lang = 'id-ID';
+            utterThis.pitch = 1.1; // Slightly higher pitch for friendlier tone
+            utterThis.rate = 0.9;  // Slightly slower for children to understand
+            synth.speak(utterThis);
+        }
+    }
+
+    function readText(text) {
+        // Explicit read button action
+        let oldState = state.audioEnabled;
+        state.audioEnabled = true; // force read
+        speak(text);
+        state.audioEnabled = oldState; // restore
+    }
+
+    // --- NAVIGATION & FLOW ---
+    function showScreen(screenId) {
+        ['screen-home', 'screen-map', 'screen-quiz', 'screen-minigame', 'screen-results'].forEach(id => {
+            document.getElementById(id).classList.add('hidden');
+            document.getElementById(id).classList.remove('flex');
+        });
+        document.getElementById(screenId).classList.remove('hidden');
+        document.getElementById(screenId).classList.add('flex');
+        
+        if(screenId !== 'screen-home') {
+            document.getElementById('game-header').classList.remove('hidden');
+        } else {
+            document.getElementById('game-header').classList.add('hidden');
+        }
+        
+        // Scroll to top
+        window.scrollTo(0,0);
+    }
+
+    function startGame() {
+        const nameInput = document.getElementById('player-name').value.trim();
+        if (nameInput.length < 2) {
+            alert("Harap masukkan nama lengkapmu (minimal 2 huruf)!");
+            speak("Harap masukkan namamu sebelum mulai.");
+            return;
+        }
+        state.player = nameInput;
+        document.getElementById('header-name').innerText = state.player;
+        
+        // Initial silent speech to unlock Web Speech API on mobile
+        speak(" ", true); 
+        
+        setTimeout(() => {
+            showScreen('screen-map');
+            updateMapUI();
+            speak(`Halo ${state.player}! Selamat datang di Ekspedisi IPAS. Pilih Misi 1 untuk memulai petualanganmu.`);
+        }, 300);
+    }
+
+    function updateMapUI() {
+        // Update nodes based on current mission
+        for(let i=1; i<=3; i++) {
+            let node = document.getElementById(`node-${i}`);
+            node.className = 'mission-node self-center text-center'; // reset
+            if (i === 1) node.classList.add('self-start', 'ml-8');
+            if (i === 2) node.classList.add('self-end', 'mr-8');
+            
+            if (i < state.currentMission) {
+                node.classList.add('completed');
+                node.innerHTML = node.innerHTML.replace('onclick', ''); // remove click
+                node.querySelector('.floating')?.classList.remove('floating');
+                if(!node.innerHTML.includes('✅')) {
+                    node.children[0].innerHTML = '✅' + node.children[0].innerHTML.substring(node.children[0].innerHTML.indexOf('<div'));
+                }
+            } else if (i === state.currentMission) {
+                node.classList.add('active', 'cursor-pointer');
+                node.setAttribute('onclick', `startMission(${i})`);
+                if(!node.querySelector('.floating')) node.children[0].classList.add('floating');
+            } else {
+                node.classList.add('cursor-not-allowed');
+                node.removeAttribute('onclick');
+            }
+        }
+        document.getElementById('header-score').innerText = state.scoreMCQ;
+
+        if (state.currentMission > 3) {
+            document.getElementById('btn-to-minigame').classList.remove('hidden');
+            speak("Luar biasa! Kamu telah menyelesaikan semua misi utama. Sekarang buka peti harta karun untuk main mini-game!");
+        }
+    }
+
+    // --- QUIZ LOGIC ---
+    let currentOptionsOrder = [];
+
+    function startMission(level) {
+        if (level !== state.currentMission) return;
+        
+        state.currentQuestionIndex = 0;
+        document.getElementById('quiz-mission-title').innerText = `Misi ${level}: ${level===1?'Gerbang Dunia':level===2?'Tantangan Bumi':'Naga Penjaga'}`;
+        
+        showScreen('screen-quiz');
+        let levelDesc = level === 1 ? "Mudah" : level === 2 ? "Sedang" : "Sulit";
+        speak(`Misi ${level} dimulai. Level ${levelDesc}. Ayo jawab pertanyaannya dengan teliti!`);
+        
+        loadQuestion();
+    }
+
+    // Fisher-Yates shuffle
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function loadQuestion() {
+        const qData = questionsData[state.currentMission][state.currentQuestionIndex];
+        
+        document.getElementById('quiz-progress').innerText = `Soal ${state.currentQuestionIndex + 1}/5`;
+        document.getElementById('quiz-progress-bar').style.width = `${((state.currentQuestionIndex) / 5) * 100}%`;
+        
+        document.getElementById('question-text').innerText = qData.q;
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+
+        // Prepare options with original index to check answer
+        let optionsArr = qData.opts.map((text, idx) => ({ text, originalIndex: idx }));
+        
+        // Shuffle options
+        currentOptionsOrder = shuffleArray([...optionsArr]);
+
+        const labels = ['A', 'B', 'C', 'D'];
+        currentOptionsOrder.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn bg-white w-full text-left p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3 relative';
+            btn.innerHTML = `
+                <span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 shrink-0 border border-slate-200">${labels[idx]}</span>
+                <span class="font-medium text-slate-700 text-sm md:text-base">${opt.text}</span>
+            `;
+            btn.onclick = () => selectAnswer(opt.originalIndex, btn);
+            container.appendChild(btn);
+        });
+
+        // Read question if audio enabled
+        if(state.audioEnabled) {
+            let readText = qData.q + ". ";
+            currentOptionsOrder.forEach((opt, idx) => {
+                readText += `${labels[idx]}. ${opt.text}. `;
+            });
+            speak(readText);
+        }
+    }
+
+    let isAnswering = false; // Prevent double clicks
+
+    function selectAnswer(selectedIndex, btnElement) {
+        if (isAnswering) return;
+        isAnswering = true;
+        synth.cancel(); // Stop reading question
+
+        const qData = questionsData[state.currentMission][state.currentQuestionIndex];
+        const isCorrect = selectedIndex === qData.ans;
+        
+        // Disable all buttons
+        const buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(btn => btn.disabled = true);
+
+        // Highlight selected
+        btnElement.classList.add('selected');
+
+        setTimeout(() => {
+            let pointsEarned = 0;
+            if (isCorrect) {
+                btnElement.classList.remove('selected');
+                btnElement.classList.add('correct');
+                state.correctAnswers++;
+                pointsEarned = state.currentMission === 1 ? 10 : state.currentMission === 2 ? 20 : 30;
+                state.scoreMCQ += pointsEarned;
+                state.pointsPerLevel[state.currentMission] += pointsEarned;
+                
+                showFeedback(true, pointsEarned, qData.exp);
+            } else {
+                btnElement.classList.remove('selected');
+                btnElement.classList.add('wrong');
+                state.wrongAnswers++;
+                
+                // Highlight correct answer
+                const correctListIndex = currentOptionsOrder.findIndex(opt => opt.originalIndex === qData.ans);
+                if (correctListIndex !== -1) {
+                    buttons[correctListIndex].classList.add('correct');
+                    buttons[correctListIndex].classList.add('border-2');
+                }
+                
+                showFeedback(false, 0, qData.exp);
+            }
+            
+            document.getElementById('header-score').innerText = state.scoreMCQ;
+            state.answersLog.push({ m: state.currentMission, q: state.currentQuestionIndex, correct: isCorrect });
+            
+        }, 600); // Small delay for visual effect
+    }
+
+    function showFeedback(isCorrect, points, explanation) {
+        const modal = document.getElementById('feedback-modal');
+        const icon = document.getElementById('feedback-icon');
+        const title = document.getElementById('feedback-title');
+        const pts = document.getElementById('feedback-points');
+        const exp = document.getElementById('feedback-explanation');
+
+        modal.classList.remove('hidden');
+        exp.innerText = explanation;
+
+        if (isCorrect) {
+            icon.innerText = '✅';
+            title.innerText = 'Jawaban Tepat!';
+            title.className = 'text-2xl font-black mb-2 text-green-500';
+            pts.innerText = `+${points} Poin`;
+            pts.className = 'font-bold text-green-500 text-lg mb-4 bg-green-100 px-3 py-1 rounded-full inline-block';
+            speak("Hebat! Jawabanmu tepat.");
+        } else {
+            icon.innerText = '❌';
+            title.innerText = 'Kurang Tepat';
+            title.className = 'text-2xl font-black mb-2 text-red-500';
+            pts.innerText = `+0 Poin`;
+            pts.className = 'font-bold text-slate-400 text-lg mb-4 bg-slate-100 px-3 py-1 rounded-full inline-block';
+            speak("Ayo coba lagi, perhatikan penjelasannya ya.");
+        }
+    }
+
+    function nextQuestion() {
+        document.getElementById('feedback-modal').classList.add('hidden');
+        isAnswering = false;
+        
+        state.currentQuestionIndex++;
+        
+        if (state.currentQuestionIndex < 5) {
+            loadQuestion();
+        } else {
+            // Mission Complete
+            state.currentMission++;
+            showScreen('screen-map');
+            updateMapUI();
+            
+            if (state.currentMission <= 3) {
+                speak(`Misi selesai! Peta baru terbuka. Siap untuk Misi ${state.currentMission}?`);
+            }
+        }
+    }
+
+    // --- MINI GAME (Custom Touch/Click based Drag & Drop) ---
+    let selectedItem = null;
+    let placedItemsCount = 0;
+
+    function startMiniGame() {
+        showScreen('screen-minigame');
+        speak("Bonus Mini game! Sentuh kartu aktivitas ekonomi di bawah, lalu sentuh kotak wilayah geografis yang sesuai.");
+        
+        // Setup Drag Items
+        const container = document.getElementById('draggables-container');
+        container.innerHTML = '';
+        
+        // Shuffle items
+        const shuffledItems = shuffleArray([...miniGameItems]);
+        
+        shuffledItems.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'drag-item bg-white border-2 border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-all text-center flex-grow max-w-[45%]';
+            el.innerText = item.text;
+            el.dataset.id = item.id;
+            el.dataset.target = item.target;
+            
+            // Interaction: Tap to select
+            el.onclick = () => selectDragItem(el);
+            container.appendChild(el);
+        });
+
+        // Setup Drop Zones
+        const zones = document.querySelectorAll('.drop-zone');
+        zones.forEach(zone => {
+            // Clear content
+            zone.querySelector('.zone-content').innerHTML = '';
+            // Interaction: Tap to drop
+            zone.onclick = () => dropInZone(zone);
+        });
+        
+        placedItemsCount = 0;
+    }
+
+    function selectDragItem(element) {
+        // Deselect previous
+        if (selectedItem) {
+            selectedItem.classList.remove('ring-4', 'ring-sky-400', 'scale-105');
+        }
+        
+        // If clicking same item, just deselect
+        if (selectedItem === element) {
+            selectedItem = null;
+            document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active-zone'));
+            return;
+        }
+
+        selectedItem = element;
+        selectedItem.classList.add('ring-4', 'ring-sky-400', 'scale-105');
+        
+        // Highlight drop zones to indicate readiness
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active-zone'));
+        
+        speak("Pilih kotak tujuan di atas.");
+    }
+
+    function dropInZone(zoneElement) {
+        if (!selectedItem) return; // Need an item selected first
+
+        const contentArea = zoneElement.querySelector('.zone-content');
+        
+        // Move item visually
+        selectedItem.classList.remove('ring-4', 'ring-sky-400', 'scale-105');
+        // Make it smaller to fit zone
+        selectedItem.className = 'drag-item bg-slate-50 border border-slate-200 rounded px-1 py-1 text-xs font-semibold text-slate-600 shadow-sm truncate w-full text-center cursor-pointer';
+        
+        // Allow removing from zone back to pool
+        selectedItem.onclick = function(e) {
+            e.stopPropagation(); // prevent triggering zone click
+            returnToPool(this);
+        };
+        
+        contentArea.appendChild(selectedItem);
+        
+        // Remove zone highlights
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active-zone'));
+        
+        selectedItem = null;
+        placedItemsCount = document.querySelectorAll('.zone-content .drag-item').length;
+        
+        // Minor audio cue
+        let beep = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"); // Fake silent beep to interrupt
+        if(state.audioEnabled) {
+            try { synth.cancel(); } catch(e){}
+        }
+    }
+
+    function returnToPool(element) {
+        // Reset styles and move back to container
+        element.className = 'drag-item bg-white border-2 border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-all text-center flex-grow max-w-[45%]';
+        element.onclick = () => selectDragItem(element);
+        document.getElementById('draggables-container').appendChild(element);
+        placedItemsCount--;
+    }
+
+    function checkMiniGame() {
+        if (placedItemsCount < miniGameItems.length) {
+            alert("Harap pasangkan semua kartu terlebih dahulu!");
+            return;
+        }
+
+        let correctMatches = 0;
+        const zones = document.querySelectorAll('.drop-zone');
+        
+        zones.forEach(zone => {
+            const zoneType = zone.dataset.zone;
+            const itemsInZone = zone.querySelectorAll('.drag-item');
+            
+            itemsInZone.forEach(item => {
+                if (item.dataset.target === zoneType) {
+                    correctMatches++;
+                    item.classList.replace('bg-slate-50', 'bg-green-100');
+                    item.classList.replace('border-slate-200', 'border-green-400');
+                } else {
+                    item.classList.replace('bg-slate-50', 'bg-red-100');
+                    item.classList.replace('border-slate-200', 'border-red-400');
+                }
+                item.onclick = null; // lock interaction
+            });
+        });
+
+        // Calculate score (max 50)
+        // 6 items total. ~8.33 per item. Round up a bit or set fixed thresholds.
+        // Let's do: 0=0, 1-2=10, 3-4=30, 5-6=50
+        let bonus = 0;
+        if(correctMatches >= 5) bonus = 50;
+        else if(correctMatches >= 3) bonus = 30;
+        else if(correctMatches >= 1) bonus = 10;
+        
+        state.scoreBonus = bonus;
+
+        // Show Modal
+        const modal = document.getElementById('mg-feedback-modal');
+        document.getElementById('mg-feedback-text').innerText = `Kamu berhasil mencocokkan ${correctMatches} dari ${miniGameItems.length} kartu.`;
+        document.getElementById('mg-feedback-score').innerText = `+${bonus} Poin Bonus`;
+        
+        if (correctMatches === miniGameItems.length) {
+            document.getElementById('mg-feedback-title').innerText = "Sempurna!";
+            document.getElementById('mg-feedback-title').className = "text-2xl font-black mb-2 text-green-500";
+            document.getElementById('mg-btn-retry').classList.add('hidden');
+            speak(`Luar biasa! Sempurna. Kamu mendapat ${bonus} poin bonus.`);
+        } else {
+            document.getElementById('mg-feedback-title').innerText = "Bagus!";
+            document.getElementById('mg-feedback-title').className = "text-2xl font-black mb-2 text-amber-500";
+            document.getElementById('mg-btn-retry').classList.remove('hidden'); // allow retry
+            speak(`Kamu berhasil mencocokkan sebagian. Kamu mendapat ${bonus} poin bonus. Mau coba perbaiki?`);
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeMgFeedback(retry) {
+        document.getElementById('mg-feedback-modal').classList.add('hidden');
+        if (retry) {
+            // Reset state
+            state.scoreBonus = 0;
+            startMiniGame(); // rebuild UI
+        }
+    }
+
+    function endMiniGame() {
+        document.getElementById('mg-feedback-modal').classList.add('hidden');
+        showResults();
+    }
+
+
+    // --- RESULTS LOGIC ---
+    function showResults() {
+        showScreen('screen-results');
+        
+        const finalScore100 = Math.round((state.correctAnswers / 15) * 100);
+        
+        // UI Updates
+        document.getElementById('res-name').innerText = state.player;
+        const now = new Date();
+        document.getElementById('res-date').innerText = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+        
+        document.getElementById('res-final-score').innerText = finalScore100;
+        document.getElementById('res-correct').innerText = state.correctAnswers;
+        document.getElementById('res-wrong').innerText = state.wrongAnswers;
+        
+        document.getElementById('res-pts-1').innerText = state.pointsPerLevel[1];
+        document.getElementById('res-pts-2').innerText = state.pointsPerLevel[2];
+        document.getElementById('res-pts-3').innerText = state.pointsPerLevel[3];
+        document.getElementById('res-total-pts').innerText = state.scoreMCQ;
+        
+        document.getElementById('res-bonus').innerText = `+${state.scoreBonus} Poin`;
+
+        // Evaluation Logic
+        let evalText = "";
+        let evalClass = "";
+        let badgeName = "";
+        let badgeIcon = "";
+        let msg = "";
+
+        if (finalScore100 >= 86) {
+            evalText = "Sangat Baik"; evalClass = "bg-green-100 text-green-700 border border-green-300";
+            badgeName = "Master Ekspedisi"; badgeIcon = "👑";
+            msg = "Pengetahuanmu tentang dunia dan Indonesia sangat luar biasa! Terus pertahankan prestasimu.";
+        } else if (finalScore100 >= 76) {
+            evalText = "Baik"; evalClass = "bg-blue-100 text-blue-700 border border-blue-300";
+            badgeName = "Ahli Geografi"; badgeIcon = "🌟";
+            msg = "Kerja bagus! Kamu sudah memahami sebagian besar materi dengan baik. Coba tingkatkan lagi analisisnya.";
+        } else if (finalScore100 >= 60) {
+            evalText = "Cukup"; evalClass = "bg-yellow-100 text-yellow-700 border border-yellow-300";
+            badgeName = "Penjaga Bumi"; badgeIcon = "🌱";
+            msg = "Perjalanan yang berharga. Yuk, baca ulang materi Pemanfaatan Geografis agar lebih mantap.";
+        } else {
+            evalText = "Perlu Bimbingan"; evalClass = "bg-red-100 text-red-700 border border-red-300";
+            badgeName = "Penjelajah Pemula"; badgeIcon = "🎒";
+            msg = "Jangan menyerah! Setiap ahli berawal dari pemula. Minta bantuan guru atau orang tua untuk belajar lagi ya.";
+        }
+
+        const badgeEl = document.getElementById('res-eval-badge');
+        badgeEl.innerText = evalText;
+        badgeEl.className = `mt-2 text-sm font-bold px-3 py-1 rounded-full w-max mx-auto ${evalClass}`;
+        
+        document.getElementById('res-badge-name').innerText = badgeName;
+        document.getElementById('res-badge-icon').innerText = badgeIcon;
+        document.getElementById('res-message').innerText = msg;
+
+        speak(`Petualangan selesai! Nilai akhirmu adalah ${finalScore100} dari 100. Kamu mendapatkan lencana ${badgeName}. ${msg}`);
+    }
+
+    function resetGame() {
+        // Reset State
+        state.currentMission = 1;
+        state.currentQuestionIndex = 0;
+        state.scoreMCQ = 0;
+        state.scoreBonus = 0;
+        state.correctAnswers = 0;
+        state.wrongAnswers = 0;
+        state.pointsPerLevel = { 1: 0, 2: 0, 3: 0 };
+        state.answersLog = [];
+        
+        document.getElementById('header-score').innerText = '0';
+        document.getElementById('btn-to-minigame').classList.add('hidden');
+        
+        updateMapUI();
+        showScreen('screen-home');
+        synth.cancel();
+    }
+
+    // Initialization check for speech synthesis
+    window.addEventListener('load', () => {
+        // Pre-warm voices
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+          speechSynthesis.onvoiceschanged = () => { synth.getVoices(); };
+        }
+    });
+
+</script>
+</body>
+</html>
